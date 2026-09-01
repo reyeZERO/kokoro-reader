@@ -56,7 +56,15 @@ try:
     # Open the book
     js("document.querySelector('.grid button').click()")
     time.sleep(1.5)
-    print("reader header:", js("document.querySelector('header')?.innerText.replace(/\\n+/g,' | ')"))
+    hdr = js("document.querySelector('header')?.innerText.replace(/\\n+/g,' | ')")
+    print("reader header:", hdr)
+    nch = js("__engine.debug() && document.querySelectorAll('.fixed button').length")  # noqa
+    book_stats = js("(() => { const b = __engine['book']; return b && {chapters: b.chapters.length, sentences: b.sentences.length, cover: !!b.coverBlob, lang: b.language, roles: b.sentences.reduce((a,s)=>(a[s.role]=(a[s.role]||0)+1,a),{})} })()")
+    print("book:", json.dumps(book_stats))
+    if EPUB.endswith('.epub'):
+        assert book_stats and book_stats['chapters'] >= 5, "EPUB chapter extraction failed"
+        assert book_stats['cover'], "cover missing"
+        assert book_stats['roles'].get('female', 0) + book_stats['roles'].get('male', 0) > 20, "dialogue detection produced too few speaker segments"
     print("paragraphs:", js("document.querySelectorAll('.paragraph').length"), "sentences:", js("document.querySelectorAll('.sentence').length"))
     roles = js("""(() => { const s = [...document.querySelectorAll('.paragraph')].slice(0,60).map(p => p.innerText.slice(0,80)); return s.filter(t => /[“"]/.test(t)).slice(0,3) })()""")
     print("sample dialogue paragraphs:", roles)

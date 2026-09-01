@@ -13,6 +13,19 @@ multi-voice dialogue, karaoke highlighting, and Audible-style player. No backend
 First run downloads Kokoro-82M INT8 (~92 MB) + tokenizer + voice files from huggingface.co into
 CacheStorage. After that everything works in airplane mode.
 
+## Deploy
+
+GitHub Pages (automatic): push to `main` → `.github/workflows/pages.yml` builds with
+`BASE_PATH=/<repo>/` and publishes. Enable Pages → Source: GitHub Actions once in repo settings.
+Any other static host: `npm run build` (BASE_PATH=/ default) and upload `dist/`.
+
+Test on the iPhone over LAN before deploying:
+
+    npm run build && python3 tests/serve-https.py      # https://<lan-ip>:8443, self-signed
+
+Safari needs the cert trusted for the service worker (steps in the script header); without it the
+app still runs but won't install/offline.
+
 ## iOS install
 
 Open the deployed HTTPS URL in Safari → Share → Add to Home Screen. HTTPS is required for the service
@@ -22,6 +35,7 @@ worker and for `navigator.storage.persist()`. Tap the "Voice model" pill once to
 
     node --experimental-strip-types tests/dialogue.test.ts   # sentence splitter + speaker heuristics
     python3 tests/e2e.py /path/to/book.epub                   # headless Chromium: import → play → karaoke
+    python3 tests/bench.py [chrome flags]                     # DEV=wasm|webgpu DTYPE=q8|fp16|fp32 inference timing
 
 ## Layout
 
@@ -43,4 +57,8 @@ worker and for `navigator.storage.persist()`. Tap the "Voice model" pill once to
 - Background playback: the looping silent <audio> keeps the audio session alive after screen lock;
   MediaSession exposes play/pause/±15s/chapter on the lock screen. Fully backgrounded synthesis is
   throttled by iOS — pre-buffer is what covers the gap.
+- Segments longer than ~320 chars are chunked at clause boundaries before synthesis (Kokoro's
+  510-token context would otherwise silently truncate).
+- Voice embeddings for the 4 configured voices are pre-fetched into CacheStorage when the model is
+  ready, so switching voices offline works for those; other voices need a connection once.
 - Speaker detection is heuristic. Manual override per book in the Voices sheet.

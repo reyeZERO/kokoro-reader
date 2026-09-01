@@ -107,8 +107,12 @@ export class TTSEngine {
         console.log('[bench]', JSON.stringify(m.result))
         ;(globalThis as unknown as { __bench: unknown }).__bench = m.result
         break
+      case 'voicesWarmed':
+        if (m.failed.length) console.warn('[tts] voices not cached (offline?):', m.failed)
+        break
       case 'ready':
         this.availableVoices = m.voices
+        if (this.voices) this.warmVoices(this.voices)
         this.setState(this.book ? 'paused' : 'ready')
         this.resolveModelReady?.()
         break
@@ -196,7 +200,12 @@ export class TTSEngine {
     this.updateMediaMetadata()
   }
 
+  private warmVoices(v: VoiceConfig) {
+    if (this.availableVoices.length) this.post({ type: 'warmVoices', voices: [v.narrator, v.male, v.female, v.unknown] })
+  }
+
   setVoices(voices: VoiceConfig) {
+    this.warmVoices(voices)
     const speedChanged = voices.speed !== this.voices?.speed
     const wasPlaying = this.state === 'playing'
     this.voices = voices

@@ -6,14 +6,17 @@
 import { KokoroTTS } from 'kokoro-js'
 import { env } from '@huggingface/transformers'
 import { phonemize } from 'phonemizer'
+import { chunkText } from '../services/chunkText'
 
 export type WorkerIn =
   | { type: 'load'; dtype: 'q8' | 'fp16' | 'fp32' | 'q4'; device: 'wasm' | 'webgpu' }
   | { type: 'synth'; reqId: number; sentenceId: number; text: string; voice: string; speed: number }
   | { type: 'cancel' }
   | { type: 'bench' }
+  | { type: 'warmVoices'; voices: string[] }
 
 export type WorkerOut =
+  | { type: 'voicesWarmed'; ok: string[]; failed: string[] }
   | { type: 'bench'; result: Record<string, number> }
   | { type: 'progress'; file: string; loaded: number; total: number; status: string }
   | { type: 'ready'; voices: string[] }
@@ -34,7 +37,7 @@ let busy = false
 env.useBrowserCache = true
 env.allowLocalModels = false
 // Self-hosted ORT WASM (copied to /public/ort) so the service worker precaches it → true offline.
-env.backends.onnx.wasm!.wasmPaths = new URL('/ort/', self.location.origin).href
+env.backends.onnx.wasm!.wasmPaths = new URL(`${import.meta.env.BASE_URL}ort/`, self.location.origin).href
 // Single-thread when SharedArrayBuffer is unavailable (iOS Safari w/o COOP/COEP); more stable and lower memory.
 env.backends.onnx.wasm!.numThreads = typeof SharedArrayBuffer === 'undefined' ? 1 : Math.min(4, navigator.hardwareConcurrency || 1)
 
@@ -45,6 +48,7 @@ self.onmessage = async (e: MessageEvent<WorkerIn>) => {
     else if (msg.type === 'synth') { queue.push(msg); void pump() }
     else if (msg.type === 'cancel') { generation++; queue = [] }
     else if (msg.type === 'bench') await bench()
+    else if (msg.type === 'warmVoices') await warmVoices(msg.voices)
   } catch (err) {
     post({ type: 'error', message: (err as Error).message })
   }
@@ -98,7 +102,21 @@ async function pump() {
   busy = false
 }
 
+const MAX_CHUNK = 320 // chars; Kokoro's context is 510 tokens (~400 chars). Longer input is silently truncated.
+
 async function synth(text: string, voice: string, speed: number): Promise<Float32Array> {
+  if (text.length <= MAX_CHUNK) return synthOne(text, voice, speed)
+  const parts = chunkText(text, MAX_CHUNK)
+  const bufs: Float32Array[] = []
+  let total = 0
+  for (const p of parts) { const b = await synthOne(p, voice, speed); bufs.push(b); total += b.length }
+  const out = new Float32Array(total)
+  let o = 0
+  for (const b of bufs) { out.set(b, o); o += b.length }
+  return out
+}
+
+async function synthOne(text: string, voice: string, speed: number): Promise<Float32Array> {
   const t = tts!
   const lang = EXTRA_VOICES[voice]
   if (!lang) {
@@ -150,4 +168,22 @@ async function bench() {
   res.device = currentDevice === 'webgpu' ? 1 : 0
   res.sab = typeof SharedArrayBuffer !== 'undefined' ? 1 : 0
   post({ type: 'bench', result: res })
+}
+
+/** Fetch voice embeddings into the same Cache kokoro-js reads from, so they work offline later. */
+async function warmVoices(voices: string[]) {
+  const ok: string[] = [], failed: string[] = []
+  let cache: Cache | null = null
+  try { cache = await caches.open('kokoro-voices') } catch { /* no Cache API */ }
+  for (const v of new Set(voices)) {
+    const url = `https://huggingface.co/${MODEL_ID}/resolve/main/voices/${v}.bin`
+    try {
+      if (cache && await cache.match(url)) { ok.push(v); continue }
+      const r = await fetch(url)
+      if (!r.ok) throw new Error(String(r.status))
+      if (cache) await cache.put(url, r.clone())
+      ok.push(v)
+    } catch { failed.push(v) }
+  }
+  post({ type: 'voicesWarmed', ok, failed })
 }

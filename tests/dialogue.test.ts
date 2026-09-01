@@ -1,3 +1,4 @@
+import { chunkText } from '../src/services/chunkText.ts'
 import { splitSentences, markDialogue, DialogueContext } from '../src/services/dialogueParser.ts'
 
 let fails = 0
@@ -38,6 +39,14 @@ eq('es female', seg('—¿Por qué? —preguntó ella.', 'es'), [['—¿Por qué
 eq('es mixed', seg('Ella miró la ventana. —Es tarde —murmuró.', 'es'), [['Ella miró la ventana.', 'narrator'], ['—Es tarde', 'female'], ['—murmuró.', 'narrator']])
 ctx.reset()
 eq('multi-sentence quote', seg('“Stop. Don’t move,” she whispered.'), [['“Stop.', 'female'], ['Don’t move,”', 'female'], ['she whispered.', 'narrator']])
+
+
+const long = 'Alpha beta gamma delta, epsilon zeta eta theta; iota kappa lambda mu, nu xi omicron pi rho sigma tau upsilon phi chi psi omega, ' .repeat(6)
+const chunks = chunkText(long, 320)
+eq('chunk sizes ≤ max', chunks.every(c => c.length <= 320), true)
+eq('chunk roundtrip', chunks.join(' ').replace(/\s+/g, ' ').trim(), long.replace(/\s+/g, ' ').trim())
+eq('chunk splits at clause', chunks.slice(0, -1).every(c => /[,;:—–]$/.test(c)), true)
+eq('short passthrough', chunkText('Hi there.', 320), ['Hi there.'])
 
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASSED')
 process.exit(fails ? 1 : 0)
