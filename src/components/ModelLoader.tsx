@@ -1,7 +1,7 @@
 import { Cpu, Download, Check, AlertTriangle, X, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { estimateUsage, requestPersistence } from '../services/db'
-import { engine } from '../services/ttsEngine'
+import { engine, hasWebGPU } from '../services/ttsEngine'
 
 interface Props {
   onClose: () => void
@@ -19,7 +19,7 @@ export function ModelLoader({ onClose, progress, state, error }: Props) {
   const [persisted, setPersisted] = useState<boolean | null>(null)
   const [device, setDevice] = useState<'auto' | 'webgpu' | 'wasm'>('auto')
   const [dtype, setDtype] = useState<'auto' | 'q8' | 'fp16' | 'fp32' | 'q4'>('auto')
-  const hasGpu = typeof navigator !== 'undefined' && 'gpu' in navigator
+  const hasGpu = hasWebGPU()
 
   useEffect(() => {
     const tick = async () => {

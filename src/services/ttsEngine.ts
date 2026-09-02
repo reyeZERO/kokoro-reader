@@ -481,7 +481,15 @@ export function getBackendPref(): { device?: Dev; dtype?: Dt } {
 export function setBackendPref(p: { device?: Dev; dtype?: Dt }) {
   try { localStorage.setItem('kokoro.backend', JSON.stringify(p)) } catch { /* private mode */ }
 }
-function hasWebGPU(): boolean { return typeof navigator !== 'undefined' && 'gpu' in navigator && !!(navigator as unknown as { gpu?: unknown }).gpu }
+/** iOS Safari exposes WebGPU on Safari 26+ but its adapter/limits are immature and Kokoro fp32
+ *  blows the ~1.2 GB iOS jetsam ceiling during model init — the tab gets killed mid-load and the
+ *  model never finishes. Force WASM (CPU, q8) on iOS so the 92 MB int8 model loads reliably. */
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent ?? ''
+  return /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+export function hasWebGPU(): boolean { return !isIOS() && typeof navigator !== 'undefined' && 'gpu' in navigator && !!(navigator as unknown as { gpu?: unknown }).gpu }
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n))
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
