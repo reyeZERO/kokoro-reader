@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types tests/dialogue.test.ts",
+    "test": "node --experimental-strip-types tests/dialogue.test.ts && node --experimental-strip-types tests/tags.test.ts",
     "e2e": "python3 tests/e2e.py",
     "serve": "python3 tests/serve.py dist 4173"
   },

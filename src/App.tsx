@@ -4,8 +4,9 @@ import { ReaderView } from './components/ReaderView'
 import { ModelLoader } from './components/ModelLoader'
 import { engine } from './services/ttsEngine'
 import { useEngine } from './hooks/useEngine'
-import { getProgress, getSettings, getVoices, loadBook, setVoices as persistVoices } from './services/db'
-import { DEFAULT_VOICES_EN, DEFAULT_VOICES_ES, type Book, type ReaderSettings, type VoiceConfig } from './types'
+import { getProgress, getSettings, getVoices, loadBook, saveBook, setProgress, setVoices as persistVoices } from './services/db'
+import { reparseBook } from './services/epubParser'
+import { DEFAULT_VOICES_EN, DEFAULT_VOICES_ES, type Book, type DialogueMode, type ReaderSettings, type VoiceConfig } from './types'
 
 type View = { name: 'library' } | { name: 'reader'; book: Book }
 
@@ -40,13 +41,27 @@ export default function App() {
     if (view.name === 'reader') void persistVoices(view.book.id, v)
   }
 
+  /** Re-segment the book with a different dialogue mode, keeping the reading position (same paragraph). */
+  const onMode = (mode: DialogueMode) => {
+    if (view.name !== 'reader' || view.book.dialogueMode === mode) return
+    const old = view.book
+    const wasPlaying = engine.getState() === 'playing'
+    const pid = old.sentences[engine.getCursor()]?.paragraphIdx ?? 0
+    const book = reparseBook(old, mode)
+    const start = book.paragraphs[pid]?.sentenceIds[0] ?? 0
+    engine.setBook(book, voices, start)
+    setView({ name: 'reader', book })
+    void saveBook(book).then(() => setProgress(book.id, start))
+    if (wasPlaying) void engine.play(start)
+  }
+
   const modelState = state === 'loading-model' ? 'loading' : state === 'error' ? 'error' : state === 'idle' ? 'idle' : 'ready'
 
   return (
     <>
       {view.name === 'library' && <LibraryView onOpen={openBook} onOpenModel={() => setShowModel(true)} modelState={modelState} />}
       {view.name === 'reader' && (
-        <ReaderView book={view.book} voices={voices} settings={settings} onVoices={onVoices} onSettings={setSettings}
+        <ReaderView book={view.book} voices={voices} settings={settings} onVoices={onVoices} onMode={onMode} onSettings={setSettings}
           onBack={() => { engine.pause(); setView({ name: 'library' }) }} />
       )}
       {showModel && <ModelLoader onClose={() => setShowModel(false)} progress={progress} state={state} error={error} />}

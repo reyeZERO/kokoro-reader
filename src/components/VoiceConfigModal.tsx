@@ -1,17 +1,24 @@
-import { X, Mic2, User, UserRound, Gauge } from 'lucide-react'
-import { VOICE_CATALOG, type Lang, type VoiceConfig, type VoiceId } from '../types'
+import { X, Mic2, User, UserRound, Gauge, MessageSquareQuote } from 'lucide-react'
+import { VOICE_CATALOG, type DialogueMode, type Lang, type VoiceConfig, type VoiceId } from '../types'
 
 interface Props {
   config: VoiceConfig
   lang: Lang
+  mode: DialogueMode
+  onMode: (m: DialogueMode) => void
   onChange: (c: VoiceConfig) => void
   onClose: () => void
   onPreview: (voice: VoiceId) => void
 }
 
 const SPEEDS = [0.75, 1, 1.25, 1.5, 2]
+const MODES: { id: DialogueMode; label: string; hint: string }[] = [
+  { id: 'punctuation', label: 'Punctuation', hint: 'Quotes “…” and dashes —… mark speech' },
+  { id: 'tags', label: 'Speech tags', hint: 'No quotes in this book: uses "dije / dijo Bangley" anchors' },
+  { id: 'solo', label: 'Solo narrator', hint: 'One voice; spoken lines slightly slower' },
+]
 
-export function VoiceConfigModal({ config, lang, onChange, onClose, onPreview }: Props) {
+export function VoiceConfigModal({ config, lang, mode, onMode, onChange, onClose, onPreview }: Props) {
   const set = <K extends keyof VoiceConfig>(k: K, v: VoiceConfig[K]) => onChange({ ...config, [k]: v })
   const voices = [...VOICE_CATALOG].sort((a, b) => (a.lang === lang ? -1 : 1) - (b.lang === lang ? -1 : 1))
 
@@ -31,6 +38,16 @@ export function VoiceConfigModal({ config, lang, onChange, onClose, onPreview }:
                 <button key={s} onClick={() => set('speed', s)} className={`h-10 rounded-xl text-sm font-medium ${config.speed === s ? 'bg-white text-black' : 'bg-neutral-800 text-neutral-300'}`}>{s}×</button>
               ))}
             </div>
+          </section>
+
+          <section>
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><MessageSquareQuote size={14} /> Dialogue detection</p>
+            <div className="grid grid-cols-3 gap-2">
+              {MODES.map(m => (
+                <button key={m.id} onClick={() => onMode(m.id)} className={`h-10 rounded-xl text-sm font-medium ${mode === m.id ? 'bg-white text-black' : 'bg-neutral-800 text-neutral-300'}`}>{m.label}</button>
+              ))}
+            </div>
+            <p className="text-[11px] text-neutral-600 mt-1.5">{MODES.find(m => m.id === mode)?.hint}</p>
           </section>
 
           <VoiceRow icon={<Mic2 size={14} />} label="Narrator" hint="Descriptive text" value={config.narrator} voices={voices} onChange={v => set('narrator', v)} onPreview={onPreview} />

@@ -57,6 +57,12 @@ worker and for `navigator.storage.persist()`. Tap the "Voice model" pill once to
 - Background playback: the looping silent <audio> keeps the audio session alive after screen lock;
   MediaSession exposes play/pause/±15s/chapter on the lock screen. Fully backgrounded synthesis is
   throttled by iOS — pre-buffer is what covers the gap.
+- Dialogue detection has three modes (Voices sheet → "Dialogue detection", saved per book):
+  Punctuation (quotes/em-dashes), Speech tags (for unquoted prose — Heller, McCarthy — anchors on
+  `dije / dijo Bangley / murmuró` and remembers each named character's voice), Solo narrator
+  (one voice, spoken lines 6% slower). Auto-picked at import: a book with <10 quote marks and
+  ≥8 speech tags in its first 600 paragraphs starts in tag mode. Switching re-segments in place
+  and keeps your paragraph.
 - Segments longer than ~320 chars are chunked at clause boundaries before synthesis (Kokoro's
   510-token context would otherwise silently truncate).
 - Voice embeddings for the 4 configured voices are pre-fetched into CacheStorage when the model is

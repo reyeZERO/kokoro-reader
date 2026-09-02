@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, List, Type, Mic2, Minus, Plus } from 'lucide-react'
-import type { Book, ReaderSettings, VoiceConfig } from '../types'
+import type { Book, DialogueMode, ReaderSettings, VoiceConfig } from '../types'
 import { engine } from '../services/ttsEngine'
 import { setProgress, setSettings } from '../services/db'
 import { AudioPlayer } from './AudioPlayer'
@@ -12,6 +12,7 @@ interface Props {
   voices: VoiceConfig
   settings: ReaderSettings
   onVoices: (v: VoiceConfig) => void
+  onMode: (m: DialogueMode) => void
   onSettings: (s: ReaderSettings) => void
   onBack: () => void
 }
@@ -23,7 +24,7 @@ const FONT_STACK: Record<ReaderSettings['font'], string> = {
   sans: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif',
 }
 
-export function ReaderView({ book, voices, settings, onVoices, onSettings, onBack }: Props) {
+export function ReaderView({ book, voices, settings, onVoices, onMode, onSettings, onBack }: Props) {
   const { state, sentenceId, buffered, error } = useEngine()
   const [chapterIdx, setChapterIdx] = useState(book.sentences[sentenceId]?.chapterIdx ?? 0)
   const [showToc, setShowToc] = useState(false)
@@ -185,7 +186,7 @@ export function ReaderView({ book, voices, settings, onVoices, onSettings, onBac
       )}
 
       {showVoices && (
-        <VoiceConfigModal config={voices} lang={book.language} onClose={() => setShowVoices(false)}
+        <VoiceConfigModal config={voices} lang={book.language} mode={book.dialogueMode ?? 'punctuation'} onMode={onMode} onClose={() => setShowVoices(false)}
           onChange={onVoices} onPreview={() => { /* changes apply live to next sentence */ }} />
       )}
     </div>

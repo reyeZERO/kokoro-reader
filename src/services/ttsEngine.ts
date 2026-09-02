@@ -354,10 +354,16 @@ export class TTSEngine {
     if (this.currentSource) { try { this.currentSource.onended = null; this.currentSource.stop() } catch { /* already stopped */ } this.currentSource = null }
   }
 
-  private keyFor(s: Sentence) { return `${s.id}|${this.voiceFor(s)}|${this.voices?.speed ?? 1}` }
+  private keyFor(s: Sentence) { return `${s.id}|${this.voiceFor(s)}|${this.speedFor(s)}` }
   private voiceFor(s: Sentence): VoiceId {
     const v = this.voices!
     return s.role === 'male' ? v.male : s.role === 'female' ? v.female : s.role === 'unknown' ? v.unknown : v.narrator
+  }
+  /** Solo mode / first-person speech: spoken lines get a slightly slower delivery (audiobook-director style). */
+  private speedFor(s: Sentence): number {
+    const base = this.voices?.speed ?? 1
+    const solo = this.book?.dialogueMode === 'solo' || s.role === 'narrator'
+    return s.dialogue && solo ? Math.round(base * 0.94 * 100) / 100 : base
   }
 
   private ensure(s: Sentence): Promise<AudioBuffer> {
@@ -373,7 +379,7 @@ export class TTSEngine {
     return new Promise((resolve, reject) => {
       const reqId = ++this.reqCounter
       this.pending.set(key, { reqId, resolve, reject })
-      this.post({ type: 'synth', reqId, sentenceId: s.id, text: s.text, voice: this.voiceFor(s), speed: this.voices!.speed })
+      this.post({ type: 'synth', reqId, sentenceId: s.id, text: s.text, voice: this.voiceFor(s), speed: this.speedFor(s) })
     })
   }
 

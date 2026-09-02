@@ -3,7 +3,8 @@
  * Produces a fully segmented Book (chapters → paragraphs → sentences with speaker roles).
  */
 import JSZip from 'jszip'
-import type { Book, Chapter, Lang, Paragraph, Sentence } from '../types'
+import type { Book, Chapter, DialogueMode, Lang, Paragraph, Sentence } from '../types'
+import { SpeakerTagContext, looksUnquoted } from './speakerTags'
 import { DialogueContext, splitSentences } from './dialogueParser'
 
 const MAX_PARAGRAPH_CHARS = 1400 // split very long paragraphs so highlight granularity stays sane
@@ -181,57 +182,86 @@ function extractBlocks(body: Element): Block[] {
 // ---------------------------------------------------------------- Builder
 
 class BookBuilder {
-  private chapters: Chapter[] = []
-  private paragraphs: Paragraph[] = []
-  private sentences: Sentence[] = []
-  private ctx = new DialogueContext()
-  private lang: Lang
+  private ops: ({ op: 'chapter'; title: string; href: string } | { op: 'para'; text: string; heading: 0 | 1 | 2 | 3 })[] = []
+  /** Explicit mode; undefined = auto-detect from the text at finish() */
+  mode: DialogueMode | undefined
 
-  constructor(lang: Lang) { this.lang = lang }
-  setLang(l: Lang) { this.lang = l }
+  constructor(_lang: Lang) {}
+  setLang(_l: Lang) {}
 
-  startChapter(title: string, href: string) {
-    this.ctx.reset()
-    this.chapters.push({ idx: this.chapters.length, title: title.slice(0, 120), href, paragraphIds: [], firstSentenceId: this.sentences.length, wordCount: 0 })
+  startChapter(title: string, href: string) { this.ops.push({ op: 'chapter', title, href }) }
+  addParagraph(text: string, heading: 0 | 1 | 2 | 3) { this.ops.push({ op: 'para', text, heading }) }
+
+  finish(meta: { title: string; author: string; lang: Lang; coverBlob?: Blob }): Book {
+    const bodies = this.ops.filter(o => o.op === 'para' && o.heading === 0).map(o => (o as { text: string }).text)
+    const mode = this.mode ?? (looksUnquoted(bodies.slice(0, 600)) ? 'tags' : 'punctuation')
+    const built = buildStructure(this.ops, meta.lang, mode)
+    return {
+      id: crypto.randomUUID(),
+      title: meta.title, author: meta.author, language: meta.lang, coverBlob: meta.coverBlob,
+      addedAt: Date.now(), dialogueMode: mode, ...built,
+    }
   }
+}
 
-  addParagraph(text: string, heading: 0 | 1 | 2 | 3) {
-    if (this.chapters.length === 0) this.startChapter('Untitled', '')
-    const ch = this.chapters[this.chapters.length - 1]
-    // Split pathological long paragraphs at sentence boundaries
-    const chunks = text.length > MAX_PARAGRAPH_CHARS ? chunkBySentences(text, MAX_PARAGRAPH_CHARS) : [text]
+type Op = { op: 'chapter'; title: string; href: string } | { op: 'para'; text: string; heading: 0 | 1 | 2 | 3 }
+
+/** Re-segment an existing book with a different dialogue mode (keeps id/meta/progress ids may shift). */
+export function reparseBook(book: Book, mode: DialogueMode): Book {
+  const ops: Op[] = []
+  for (const ch of book.chapters) {
+    ops.push({ op: 'chapter', title: ch.title, href: ch.href })
+    for (const pid of ch.paragraphIds) { const p = book.paragraphs[pid]; ops.push({ op: 'para', text: p.text, heading: p.heading }) }
+  }
+  return { ...book, dialogueMode: mode, ...buildStructure(ops, book.language, mode) }
+}
+
+function buildStructure(ops: Op[], lang: Lang, mode: DialogueMode) {
+  const chapters: Chapter[] = []
+  const paragraphs: Paragraph[] = []
+  const sentences: Sentence[] = []
+  const ctx = new DialogueContext()
+  const tags = new SpeakerTagContext()
+  const startChapter = (title: string, href: string) => {
+    ctx.reset(); tags.reset()
+    chapters.push({ idx: chapters.length, title: title.slice(0, 120), href, paragraphIds: [], firstSentenceId: sentences.length, wordCount: 0 })
+  }
+  for (const o of ops) {
+    if (o.op === 'chapter') { startChapter(o.title, o.href); continue }
+    if (chapters.length === 0) startChapter('Untitled', '')
+    const ch = chapters[chapters.length - 1]
+    const chunks = o.text.length > MAX_PARAGRAPH_CHARS ? chunkBySentences(o.text, MAX_PARAGRAPH_CHARS) : [o.text]
     for (const chunk of chunks) {
-      const pid = this.paragraphs.length
-      const segs = heading > 0
+      const pid = paragraphs.length
+      const segs = o.heading > 0
         ? splitSentences(chunk).map(r => ({ ...r, role: 'narrator' as const, dialogue: false }))
-        : this.ctx.segment(chunk, this.lang)
+        : mode === 'tags' ? (tags.segment(chunk, lang) ?? ctx.segment(chunk, lang))
+        : mode === 'solo' ? soloSegments(chunk, lang, ctx, tags)
+        : ctx.segment(chunk, lang)
       const sentenceIds: number[] = []
       for (const r of segs) {
-        const sid = this.sentences.length
-        this.sentences.push({ id: sid, text: chunk.slice(r.start, r.end).trim(), paragraphIdx: pid, chapterIdx: ch.idx, role: r.role, start: r.start, end: r.end })
+        const sid = sentences.length
+        sentences.push({ id: sid, text: chunk.slice(r.start, r.end).trim(), paragraphIdx: pid, chapterIdx: ch.idx, role: r.role, dialogue: r.dialogue || undefined, start: r.start, end: r.end })
         sentenceIds.push(sid)
       }
-      this.paragraphs.push({ id: pid, chapterIdx: ch.idx, text: chunk, heading, sentenceIds })
+      paragraphs.push({ id: pid, chapterIdx: ch.idx, text: chunk, heading: o.heading, sentenceIds })
       ch.paragraphIds.push(pid)
       ch.wordCount += chunk.split(/\s+/).length
     }
   }
+  const kept = chapters.filter(c => c.paragraphIds.length > 0)
+  const remap = new Map<number, number>()
+  kept.forEach((c, i) => { remap.set(c.idx, i); c.idx = i })
+  for (const p of paragraphs) p.chapterIdx = remap.get(p.chapterIdx) ?? p.chapterIdx
+  for (const s of sentences) s.chapterIdx = remap.get(s.chapterIdx) ?? s.chapterIdx
+  const wordCount = kept.reduce((a, c) => a + c.wordCount, 0)
+  return { chapters: kept, paragraphs, sentences, wordCount, sentenceCount: sentences.length, chapterCount: kept.length }
+}
 
-  finish(meta: { title: string; author: string; lang: Lang; coverBlob?: Blob }): Book {
-    const chapters = this.chapters.filter(c => c.paragraphIds.length > 0)
-    // Re-index chapters after filtering
-    const remap = new Map<number, number>()
-    chapters.forEach((c, i) => { remap.set(c.idx, i); c.idx = i })
-    for (const p of this.paragraphs) p.chapterIdx = remap.get(p.chapterIdx) ?? p.chapterIdx
-    for (const s of this.sentences) s.chapterIdx = remap.get(s.chapterIdx) ?? s.chapterIdx
-    const wordCount = chapters.reduce((a, c) => a + c.wordCount, 0)
-    return {
-      id: crypto.randomUUID(),
-      title: meta.title, author: meta.author, language: meta.lang, coverBlob: meta.coverBlob,
-      addedAt: Date.now(), wordCount, sentenceCount: this.sentences.length, chapterCount: chapters.length,
-      chapters, paragraphs: this.paragraphs, sentences: this.sentences,
-    }
-  }
+/** Solo mode: detect spoken lines (punctuation or tags) but keep every segment on the narrator voice, flagged dialogue. */
+function soloSegments(chunk: string, lang: Lang, ctx: DialogueContext, tags: SpeakerTagContext) {
+  const segs = tags.segment(chunk, lang) ?? ctx.segment(chunk, lang)
+  return segs.map(r => ({ ...r, role: 'narrator' as const }))
 }
 
 function chunkBySentences(text: string, max: number): string[] {

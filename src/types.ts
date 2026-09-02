@@ -17,12 +17,21 @@ export interface Sentence {
   paragraphIdx: number
   chapterIdx: number
   role: SpeakerRole
+  /** True when the segment is spoken (even if role is narrator, e.g. first-person 'dije') */
+  dialogue?: boolean
   /** Local offset (chars) inside the paragraph, for highlight mapping */
   start: number
   end: number
 }
 
 export type SpeakerRole = 'narrator' | 'male' | 'female' | 'unknown'
+/**
+ * How dialogue is found.
+ *  punctuation — quotes / em-dashes (default for most books)
+ *  tags        — verbs of utterance for minimalist-punctuation prose (Heller, McCarthy): "Ya lo sé, dije."
+ *  solo        — one voice; spoken lines get a subtle speed/tone shift instead of a voice switch
+ */
+export type DialogueMode = 'punctuation' | 'tags' | 'solo'
 
 export interface Paragraph {
   id: number
@@ -53,6 +62,7 @@ export interface BookMeta {
   wordCount: number
   sentenceCount: number
   chapterCount: number
+  dialogueMode?: DialogueMode
 }
 
 export interface Book extends BookMeta {
