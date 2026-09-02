@@ -38,26 +38,12 @@ export default defineConfig({
         globIgnores: ['**/assets/ort-wasm-*'],
         maximumFileSizeToCacheInBytes: 30 * 1024 * 1024,
         navigateFallback: `${base}index.html`,
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/huggingface\.co\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'kokoro-model-cdn',
-              expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/.*onnxruntime.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'onnx-wasm',
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
+        // No runtimeCaching for huggingface.co / jsdelivr. The model weights + voices are cached
+        // explicitly by transformers.js (env.useBrowserCache) and the worker's warmVoices(), and the
+        // ORT wasm is self-hosted under /ort. Intercepting the ~92 MB model download with workbox
+        // CacheFirst double-buffers it (SW cache + transformers cache) and hangs iOS Safari on the
+        // streaming clone of a large cross-origin redirect — the model sat at 0% "Fetching manifest".
+        runtimeCaching: [],
       },
       devOptions: { enabled: false },
     }),
