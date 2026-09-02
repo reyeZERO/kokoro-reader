@@ -6,6 +6,7 @@
 import { KokoroTTS } from 'kokoro-js'
 import { env } from '@huggingface/transformers'
 import { phonemize } from 'phonemizer'
+import ESpeakNG from 'espeak-ng'
 import { chunkText } from '../services/chunkText'
 
 export type WorkerIn =
@@ -132,8 +133,24 @@ async function synthOne(text: string, voice: string, speed: number): Promise<Flo
 
 const PUNCT = /(\s*[;:,.!?¡¿—…"«»“”(){}[\]]+\s*)+/g
 async function phonemizeFor(text: string, lang: string): Promise<string> {
+  // `phonemizer` 1.2 ships an English-only espeak dictionary. Its API advertises
+  // Spanish voices, but `phonemize(..., 'es')` throws at runtime. The full
+  // espeak-ng WASM package includes es_dict and is bundled with the app, so this
+  // branch stays local/offline after the PWA shell is cached.
+  if (lang === 'es') return phonemizeSpanish(text)
+
   // Keep punctuation (Kokoro's tokenizer knows it, drives prosody); phonemize the words between.
-  const norm = text.replace(/[‘’]/g, "'").replace(/«/g, '“').replace(/»/g, '”').replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim()
+  const norm = normalizeForKokoro(text)
+  const parts = splitPunctuation(norm)
+  const out = await Promise.all(parts.map(async p => p.punct ? p.text : (await phonemize(p.text, lang)).join(' ')))
+  return kokoroIpa(out.join(''))
+}
+
+function normalizeForKokoro(text: string) {
+  return text.replace(/[‘’]/g, "'").replace(/«/g, '“').replace(/»/g, '”').replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim()
+}
+
+function splitPunctuation(norm: string) {
   const parts: { punct: boolean; text: string }[] = []
   let last = 0
   for (const m of norm.matchAll(PUNCT)) {
@@ -142,9 +159,22 @@ async function phonemizeFor(text: string, lang: string): Promise<string> {
     last = m.index! + m[0].length
   }
   if (last < norm.length) parts.push({ punct: false, text: norm.slice(last) })
-  const out = await Promise.all(parts.map(async p => p.punct ? p.text : (await phonemize(p.text, lang)).join(' ')))
+  return parts
+}
+
+async function phonemizeSpanish(text: string): Promise<string> {
+  const output = `kokoro-es-${Math.random().toString(36).slice(2)}`
+  const espeak = await ESpeakNG({
+    arguments: ['--phonout', output, '--sep=', '-q', '-b=1', '--ipa=3', '-v', 'es', normalizeForKokoro(text)],
+  })
+  // IPA punctuation is retained by espeak. Normalize only symbols unsupported
+  // by the Kokoro v1 tokenizer, matching the upstream non-English pathway.
+  return kokoroIpa(espeak.FS.readFile(output, { encoding: 'utf8' }).trim())
+}
+
+function kokoroIpa(ipa: string): string {
   // Kokoro (misaki) post-processing for espeak output
-  return out.join('').replace(/ʲ/g, 'j').replace(/r/g, 'ɹ').replace(/x/g, 'k').replace(/ɬ/g, 'l').trim()
+  return ipa.replace(/ʲ/g, 'j').replace(/r/g, 'ɹ').replace(/x/g, 'k').replace(/ɬ/g, 'l').trim()
 }
 
 async function bench() {

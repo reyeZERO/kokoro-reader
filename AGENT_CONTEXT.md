@@ -64,7 +64,7 @@ WorkerIn: load{dtype,device}|synth{reqId,sentenceId,text,voice,speed}|cancel{req
 WorkerOut: ready{voices}|audio{reqId,samples:Float32Array,sampleRate,ms}|progress{file,loaded,total}|error{message}|bench{result}|voicesWarmed{ok,failed}
 env.useBrowserCache=true (CacheStorage offline), allowLocalModels=false; wasmPaths=`${import.meta.env.BASE_URL}ort/` L39
 MODEL_ID='onnx-community/Kokoro-82M-v1.0-ONNX'
-synth: >320 chars→chunkText; non-en voice (ef_/em_)→phonemizer(espeak WASM)→phonemes to generate; else kokoro generate(text,{voice,speed})
+synth: >320 chars→chunkText; ef_/em_ Spanish voices→full espeak-ng WASM (IPA)→tokenizer→generate_from_ids; EN→kokoro generate(text,{voice,speed})
 warmVoices: fetch voices/<id>.bin into cache 'kokoro-voices'... (writes via caches API so offline voice switch works)
 
 ## services/db.ts (111L) idb, DB 'kokoro-reader' v1
@@ -93,7 +93,7 @@ tests/serve-https.py: self-signed LAN HTTPS :8443 for iPhone (cert trust steps i
 - GitHub Pages: no COOP/COEP headers → WASM single-threaded there
 - CacheStorage eviction unless navigator.storage.persist() granted; iOS tab jetsam ~1GB → keep cache/LOOKAHEAD modest
 - Kokoro truncates >510 tokens silently → chunkText 320
-- kokoro-js validates EN voices only → ES via phonemizer
+- kokoro-js validates EN voices only; `phonemizer@1.2` has EN-only eSpeak data despite advertising ES. ES uses the bundled full `espeak-ng` WASM; regression: `node tests/espeak-es.test.mjs`.
 - Model: q8≈92MB fp16≈160MB fp32≈325MB in CacheStorage; first load needs network, then offline
 - terminal guard: use `npm install --no-fund --no-audit` (plain `npm i` blocked); long builds/e2e in background procs w/ logs /tmp/kr-*
 - HF downloads from this dev box ~2KB/s (throttled) — don't fetch big models here

@@ -185,7 +185,7 @@ prevents that.
 |---|---|
 | `WorkerIn` / `WorkerOut` | message protocol: `load{s dtype,device}` / `synth{reqId,text,voice,speed}` / `cancel` / `bench` / `warmVoices{voices}` ⇢ `ready{voices}` / `audio{reqId,samples,sampleRate,ms}` / `progress{file,loaded,total}` / `error` / `bench` / `voicesWarmed` |
 | top config | `env.useBrowserCache = true` (weights → CacheStorage), `env.allowLocalModels = false`, ORT `wasmPaths` → self-hosted `${BASE_URL}ort/` |
-| `synth(text, voice, speed)` | chunks >320 chars via chunkText, routes ES voices through `phonemizer` (espeak-ng WASM) because kokoro-js validates EN voices only, calls `KokoroTTS.generate`, returns Float32Array |
+| `synth(text, voice, speed)` | chunks >320 chars via chunkText; ES voices use the full `espeak-ng` WASM bundle (the `phonemizer` dependency is English-only) → IPA → tokenizer → `generate_from_ids`; EN calls `KokoroTTS.generate`; returns Float32Array |
 | `warmVoices(voices)` | fetches `voices/<id>.bin` into the same cache kokoro-js reads → voice switching works offline |
 | `bench()` | synthesizes fixed sentences, returns timing |
 
@@ -257,9 +257,10 @@ don't lose your place.
   (21 MB wasm), so `globIgnores: ['**/assets/ort-wasm-*']` avoids double-caching the worker-bundled copy.
 - **Backend**: WebGPU (fp32) auto-detected, WASM fallback; `?device=&dtype=` URL overrides and the
   ModelLoader picker force either. Note GitHub Pages can't send COOP/COEP → single-threaded WASM there.
-- **Phonemization**: kokoro-js ships an English G2P. Spanish voices (`ef_dora`, `em_alex`) are
-  routed through the `phonemizer` package (espeak-ng compiled to WASM) and the resulting phoneme
-  string is fed to Kokoro directly.
+- **Phonemization**: `phonemizer@1.2` is bundled with English-only eSpeak data despite listing
+  Spanish language identifiers. Spanish voices (`ef_dora`, `em_alex`) instead use the full
+  `espeak-ng` WASM bundle, which includes `es_dict`. It produces IPA, then `tts.tokenizer()` converts
+  it to Kokoro IDs before `generate_from_ids()`. `tests/espeak-es.test.mjs` guards this path.
 - **Queue**: `ensure()` dedupes by `${sentenceId}|${voice}|${speed}`; `prefetch()` keeps 4 sentences
   in flight ahead of the cursor; `playLoop` awaits only the *next* buffer, so playback starts with
   the first synthesized sentence (<1 s on capable hardware) instead of waiting for a chapter.
