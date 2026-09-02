@@ -26,6 +26,10 @@ Test on the iPhone over LAN before deploying:
 Safari needs the cert trusted for the service worker (steps in the script header); without it the
 app still runs but won't install/offline.
 
+Tested viewport range: iPhone SE 1st gen (320×568) through 17 Pro Max (440×956), portrait +
+landscape — `tests/viewports.py` screenshots every breakpoint and asserts zero horizontal overflow.
+Shelf adapts: 2 columns on ≤340px, 4 on ≥428px, 6 on ≥768px; landscape widens to 4.
+
 ## iOS install
 
 Open the deployed HTTPS URL in Safari → Share → Add to Home Screen. HTTPS is required for the service

@@ -38,7 +38,7 @@ export function ModelLoader({ onClose, progress, state, error }: Props) {
   const pct = Math.round((progress?.overall ?? 0) * 100)
 
   return (
-    <div className="fixed inset-0 z-50 bg-black text-white flex flex-col pt-safe pb-safe">
+    <div className="fixed inset-0 z-50 bg-black text-white flex flex-col pt-safe pb-safe px-safe">
       <div className="flex items-center justify-between px-5 py-4">
         <h2 className="text-xl font-bold">Voice model</h2>
         <button onClick={onClose} className="h-9 w-9 rounded-full bg-neutral-800 flex items-center justify-center"><X size={18} /></button>

@@ -48,13 +48,13 @@ export function LibraryView({ onOpen, onOpenModel, modelState }: Props) {
       onDragLeave={() => setDrag(false)}
       onDrop={e => { e.preventDefault(); setDrag(false); void importFiles(e.dataTransfer.files) }}
     >
-      <header className="px-5 pt-4 pb-3 flex items-center justify-between sticky top-0 bg-black/80 backdrop-blur-md z-10">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Library</h1>
+      <header className="px-5 pt-4 pb-3 flex items-center justify-between sticky top-0 bg-black/80 backdrop-blur-md z-10 pt-safe">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Library</h1>
           <p className="text-xs text-neutral-500 mt-0.5">{books.length} {books.length === 1 ? 'book' : 'books'}{usage ? ` · ${fmtBytes(usage.usage)} used` : ''}</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={onOpenModel} className={`h-10 px-3 rounded-full flex items-center gap-1.5 text-sm font-medium ${modelState === 'ready' ? 'bg-emerald-500/15 text-emerald-400' : modelState === 'loading' ? 'bg-amber-500/15 text-amber-400' : 'bg-neutral-800 text-neutral-300'}`}>
+        <div className="flex gap-2 shrink-0">
+          <button onClick={onOpenModel} className={`h-10 px-2.5 sm:px-3 rounded-full flex items-center gap-1.5 text-xs sm:text-sm font-medium whitespace-nowrap ${modelState === 'ready' ? 'bg-emerald-500/15 text-emerald-400' : modelState === 'loading' ? 'bg-amber-500/15 text-amber-400' : 'bg-neutral-800 text-neutral-300'}`}>
             {modelState === 'loading' ? <Loader2 size={16} className="animate-spin" /> : <Cpu size={16} />}
             {modelState === 'ready' ? 'Model ready' : modelState === 'loading' ? 'Loading…' : 'Voice model'}
           </button>
@@ -82,7 +82,7 @@ export function LibraryView({ onOpen, onOpenModel, modelState }: Props) {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-x-4 gap-y-6 px-5 pt-2 pb-24">
+        <div className="grid library-grid grid-cols-3 gap-x-4 gap-y-6 px-5 pt-2 pb-24">
           {books.map(b => {
             const p = progress[b.id]
             const pct = p && sentenceCounts[b.id] ? Math.min(100, Math.round((p.sentenceId / sentenceCounts[b.id]) * 100)) : 0
@@ -96,7 +96,7 @@ export function LibraryView({ onOpen, onOpenModel, modelState }: Props) {
       )}
 
       {usage && usage.quota > 0 && (
-        <div className="fixed bottom-0 inset-x-0 pb-safe pointer-events-none">
+        <div className="fixed bottom-0 inset-x-0 pb-safe px-safe pointer-events-none">
           <div className="mx-5 mb-3 text-[11px] text-neutral-600 flex items-center gap-1.5"><HardDrive size={12} />{fmtBytes(usage.usage)} of {fmtBytes(usage.quota)} available storage</div>
         </div>
       )}

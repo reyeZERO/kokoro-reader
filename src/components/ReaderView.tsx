@@ -85,7 +85,7 @@ export function ReaderView({ book, voices, settings, onVoices, onMode, onSetting
     <div className={`${themeClass} reader-surface h-dvh flex flex-col overflow-hidden`}>
       {/* Top chrome */}
       <header className={`absolute top-0 inset-x-0 z-30 pt-safe transition-transform duration-300 ${chromeVisible ? '' : '-translate-y-full'}`}>
-        <div className={`flex items-center justify-between px-2 h-12 backdrop-blur-xl ${dark ? 'bg-black/70' : 'bg-[var(--bg)]/80'} border-b border-current/5`}>
+        <div className={`flex items-center justify-between px-2 chrome-px h-12 backdrop-blur-xl ${dark ? 'bg-black/70' : 'bg-[var(--bg)]/80'} border-b border-current/5`}>
           <button onClick={onBack} className="h-10 w-10 flex items-center justify-center rounded-full active:opacity-60"><ChevronLeft size={26} /></button>
           <div className="text-center min-w-0 flex-1 px-2">
             <p className="text-[13px] font-medium truncate">{chapter.title}</p>
@@ -128,7 +128,7 @@ export function ReaderView({ book, voices, settings, onVoices, onMode, onSetting
       </header>
 
       {/* Text */}
-      <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-6 no-scrollbar"
+      <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-6 reader-pad px-safe no-scrollbar"
         onClick={e => { if (e.target === e.currentTarget) setChromeVisible(v => !v) }}>
         <div className="max-w-2xl mx-auto pt-20 pb-40" style={{ fontFamily: FONT_STACK[settings.font], fontSize: settings.fontSize, lineHeight: settings.lineHeight }}>
           {paragraphs.map(p => {
@@ -173,7 +173,7 @@ export function ReaderView({ book, voices, settings, onVoices, onMode, onSetting
 
       {showToc && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end" onClick={() => setShowToc(false)}>
-          <div className={`${themeClass} reader-surface w-[85vw] max-w-sm h-full overflow-y-auto pt-safe pb-safe shadow-2xl`} onClick={e => e.stopPropagation()}>
+          <div className={`${themeClass} reader-surface w-[85vw] max-w-sm h-full overflow-y-auto pt-safe pb-safe pl-safe shadow-2xl`} onClick={e => e.stopPropagation()}>
             <p className="px-5 pt-5 pb-3 text-xs font-semibold uppercase tracking-wider reader-muted">Contents · {book.chapters.length}</p>
             {book.chapters.map(c => (
               <button key={c.idx} onClick={() => { setShowToc(false); setFollowAudio(true); engine.seek(c.firstSentenceId); setChapterIdx(c.idx) }}

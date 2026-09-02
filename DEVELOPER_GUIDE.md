@@ -324,6 +324,16 @@ progress to the mapped paragraph's first sentence.
   `npm test` — the Heller fixture (tests/fixtures/heller-es-paras.json) will catch regressions.
 - Change mode thresholds: `looksUnquoted` (currently `<10 quotes && ≥8 tags` in first 600 paragraphs).
 
+### Responsiveness rules (already baked in)
+
+- All breakpoints are plain CSS media queries in `src/index.css` (`.library-grid`, `.reader-pad`,
+  `.chrome-px`, `.player-cover` helpers) — ≤340px shrinks the shelf to 2 covers and tightens
+  reading margins, ≥428px goes to 4, ≥768px to 6, landscape to 4.
+- Safe areas come from the `--sat/--sab/--sal/--sar` CSS vars and `pt-safe/pb-safe/px-safe/pl-safe`
+  helpers — use those classes on any new fixed overlay.
+- `tests/viewports.py` renders the five breakpoints via CDP and fails on `scrollWidth -
+  clientWidth > 0`. Add new fixed overlays to that check.
+
 ### Add a reading theme / typography
 
 1. `src/types.ts` → `ReaderSettings.theme` union; `src/index.css` `@theme` tokens (colors/fonts are

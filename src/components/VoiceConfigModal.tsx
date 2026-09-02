@@ -23,7 +23,7 @@ export function VoiceConfigModal({ config, lang, mode, onMode, onChange, onClose
   const voices = [...VOICE_CATALOG].sort((a, b) => (a.lang === lang ? -1 : 1) - (b.lang === lang ? -1 : 1))
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm px-safe" onClick={onClose}>
       <div className="bg-neutral-950 text-white rounded-t-3xl max-h-[88dvh] flex flex-col pb-safe" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
           <div><h2 className="text-lg font-bold">Voices</h2><p className="text-xs text-neutral-500">Saved per book</p></div>

@@ -43,7 +43,7 @@ export function AudioPlayer({ book, sentenceId, state, buffered, speed, onSpeed,
   // ---------------------------------------------------------------- mini player
   if (!expanded) {
     return (
-      <div className="fixed inset-x-0 bottom-0 z-40 pb-safe">
+      <div className="fixed inset-x-0 bottom-0 z-40 pb-safe px-safe">
         <div className="mx-3 mb-2 rounded-2xl bg-neutral-900/95 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/60 text-white overflow-hidden">
           <div className="h-0.5 bg-white/10"><div className="h-full bg-amber-400 transition-all" style={{ width: `${(posInChapter / chapterLen) * 100}%` }} /></div>
           <div className="flex items-center gap-3 px-3 py-2.5" onClick={() => setExpanded(true)}>
@@ -66,7 +66,7 @@ export function AudioPlayer({ book, sentenceId, state, buffered, speed, onSpeed,
 
   // ---------------------------------------------------------------- full-screen player
   return (
-    <div className="fixed inset-0 z-50 bg-gradient-to-b from-neutral-900 to-black text-white flex flex-col pt-safe pb-safe">
+    <div className="fixed inset-0 z-50 bg-gradient-to-b from-neutral-900 to-black text-white flex flex-col pt-safe pb-safe px-safe">
       <div className="flex items-center justify-between px-4 pt-2">
         <button onClick={() => setExpanded(false)} className="h-10 w-10 flex items-center justify-center rounded-full active:bg-white/10"><ChevronDown size={26} /></button>
         <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider truncate max-w-[60%]">{book.title}</p>
@@ -74,7 +74,7 @@ export function AudioPlayer({ book, sentenceId, state, buffered, speed, onSpeed,
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-8 gap-6 min-h-0">
-        <div className="w-[min(70vw,300px)] aspect-[2/3] rounded-2xl bg-neutral-800 shadow-2xl shadow-black/70 overflow-hidden shrink">
+        <div className="player-cover w-[min(70vw,300px)] aspect-[2/3] rounded-2xl bg-neutral-800 shadow-2xl shadow-black/70 overflow-hidden shrink">
           {coverUrl ? <img src={coverUrl} className="h-full w-full object-cover" alt="" /> : (
             <div className="h-full w-full p-5 flex flex-col justify-end bg-gradient-to-br from-neutral-700 to-neutral-950"><p className="font-bold text-lg leading-tight">{book.title}</p><p className="text-sm text-neutral-400">{book.author}</p></div>
           )}
@@ -96,7 +96,7 @@ export function AudioPlayer({ book, sentenceId, state, buffered, speed, onSpeed,
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-5">
+        <div className="flex items-center justify-center gap-3 sm:gap-5">
           <button onClick={() => engine.prevChapter()} className="h-12 w-12 flex items-center justify-center text-neutral-300 active:scale-90"><SkipBack size={26} fill="currentColor" /></button>
           <button onClick={() => engine.skip(-15)} className="h-12 w-12 flex items-center justify-center relative active:scale-90"><RotateCcw size={32} /><span className="absolute text-[9px] font-bold mt-0.5">15</span></button>
           <button onClick={() => engine.toggle()} className="h-18 w-18 rounded-full bg-white text-black flex items-center justify-center active:scale-95 transition shadow-lg shadow-white/10">

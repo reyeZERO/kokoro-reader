@@ -40,6 +40,46 @@ html, body, #root {
 .pt-safe { padding-top: var(--sat); }
 .pb-safe { padding-bottom: var(--sab); }
 .mb-safe { margin-bottom: var(--sab); }
+.pl-safe { padding-left: var(--sal); }
+.pr-safe { padding-right: var(--sar); }
+.px-safe { padding-left: var(--sal); padding-right: var(--sar); }
+
+/* --- Screen-size adaptations (iPhone SE 320px … 17 Pro Max 440px, landscape) --- */
+
+/* Very small screens (iPhone SE 1st gen, 320px): tighter chrome + reading margins */
+@media (max-width: 340px) {
+  .library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .reader-pad { padding-left: 1rem !important; padding-right: 1rem !important; }
+  .chrome-px { padding-left: 0.25rem !important; padding-right: 0.25rem !important; }
+}
+
+/* Landscape phones: two-line header is wasteful — reader text gets full height,
+   library shelf widens */
+@media (orientation: landscape) and (max-height: 500px) {
+  .library-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  .player-cover { width: min(34vh, 220px) !important; }
+}
+
+/* Large screens (iPhone Plus/Pro Max, iPad): wider shelf */
+@media (min-width: 428px) {
+  .library-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+}
+@media (min-width: 768px) {
+  .library-grid { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+}
+
+/* iOS standalone PWA: 100dvh fallback for old WebKit (SE runs iOS 15) */
+@supports not (height: 100dvh) {
+  .h-dvh { height: 100vh; }
+  .min-h-dvh { min-height: 100vh; }
+  .max-h-\[88dvh\] { max-height: 88vh; }
+}
+
+/* Respect Reduce Motion (karaoke transitions, waveform) */
+@media (prefers-reduced-motion: reduce) {
+  .sentence { transition: none; }
+  .pulse-soft { animation: none; }
+}
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
